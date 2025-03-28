@@ -20,7 +20,7 @@ jobs:
 
       - name: Build and push Docker image
         run: |
-          docker build -t vsepike/haruki_bot:latest ./HarukiBot
+          docker build -t vsepike/miku_bot:latest ./MikuBot
           docker build -t vsepike/yt_downloader:latest ./yt_downloader
-          docker push vsepike/haruki_bot
+          docker push vsepike/miku_bot
           docker push vsepike/yt_downloader
