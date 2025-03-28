@@ -1,0 +1,38 @@
+version: "3.9"
+
+services:
+  yt_downloader:
+    build:
+      context: ./yt_downloader
+    container_name: yt_downloader
+    environment:
+      HOST: "0.0.0.0"
+      DOWNLOAD_DIR: /app/downloads
+      MIKU_BASE: miku_bot:8080
+    volumes:
+      - ./downloads:/app/downloads
+      - ./logs:/app/logs
+    ports:
+      - "5005:5005"
+    networks:
+      app:
+
+  miku_bot:
+    build:
+      context: ./MikuBot
+    container_name: miku_bot
+    environment:
+      URL: yt_downloader
+      TELEGRAM_BOT__APITOKEN: $T_TOKEN
+    depends_on:
+      - yt_downloader
+    volumes:
+      - ./downloads:/app/downloads
+      - ./logs:/app/logs
+    ports:
+      - "8080:8080"
+    networks:
+      app:
+
+networks:
+  app:

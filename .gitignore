@@ -1,0 +1,11 @@
+bin/
+obj/
+/packages/
+riderModule.iml
+/_ReSharper.Caches/
+/logs/
+/downloads/
+/.idea/
+/yt_downloader/.idea/
+/MikuBot/.idea/
+/MikuBot/todo.txt
