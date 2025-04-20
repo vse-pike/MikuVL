@@ -17,7 +17,7 @@ services:
       app:
 
   miku_bot:
-    image: vsepike/MikuBot:latest
+    image: vsepike/miku_bot:latest
     container_name: miku_bot
     env_file:
       - .env

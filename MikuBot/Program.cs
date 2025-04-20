@@ -12,7 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration
     .AddEnvironmentVariables();
 
-var token = "7712708127:AAEbaMuYWHezQCpVIlv4Qz3lC5EtJI3m28U";
+var token = Environment.GetEnvironmentVariable("TELEGRAM_BOT__APITOKEN");
 
 if (string.IsNullOrEmpty(token))
 {
