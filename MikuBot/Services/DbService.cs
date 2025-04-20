@@ -10,12 +10,9 @@ public static class DbService
         await connection.OpenAsync();
 
         var command = connection.CreateCommand();
-        command.CommandText = """
-                                SELECT count(*) FROM PremiumUsers WHERE TelegramId = @id;
-                              """;
+        command.CommandText = "SELECT COUNT(*) FROM PremiumUsers WHERE TelegramId = @id;";
         command.Parameters.AddWithValue("@id", telegramId);
 
-        await using var reader = await command.ExecuteReaderAsync();
         var result = await command.ExecuteScalarAsync();
         var count = Convert.ToInt32(result);
 
