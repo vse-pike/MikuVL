@@ -6,7 +6,7 @@ public static class DbInitializer
 {
     public static void EnsureDatabase()
     {
-        using var connection = new SqliteConnection("Data Source=bot.db");
+        using var connection = new SqliteConnection("Data Source=db/bot.db");
         connection.Open();
 
         var command = connection.CreateCommand();

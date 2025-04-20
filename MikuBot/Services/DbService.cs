@@ -6,7 +6,7 @@ public static class DbService
 {
     public static async Task<bool> CheckUsersPremium(long telegramId)
     {
-        await using var connection = new SqliteConnection("Data Source=bot.db");
+        await using var connection = new SqliteConnection("Data Source=db/bot.db");
         await connection.OpenAsync();
 
         var command = connection.CreateCommand();

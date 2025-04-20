@@ -10,7 +10,6 @@ FROM base AS final
 WORKDIR /app
 COPY --from=build /app/publish .
 COPY Miku.gif .
-COPY miku.session .
 VOLUME /app/downloads
 ENV ASPNETCORE_URLS=http://+:8080;
 EXPOSE 8080

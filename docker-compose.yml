@@ -31,6 +31,8 @@ services:
     volumes:
       - ./downloads:/app/downloads
       - ./logs:/app/logs
+      - ./secrets/miku.session:/app/miku.session
+      - ./db:/app/db
     ports:
       - "8080:8080"
     networks:
