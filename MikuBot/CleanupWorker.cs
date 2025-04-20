@@ -1,11 +1,10 @@
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
+namespace TelegramBot;
 
 public class CleanupWorker(ILogger<CleanupWorker> logger, IConfiguration config) : BackgroundService
 {
-    private readonly string _directory = config["Downloader:DownloadDirectory"] ?? "/app/downloads";
-    private readonly TimeSpan _maxAge = TimeSpan.FromMinutes(5);
-    private readonly TimeSpan _interval = TimeSpan.FromMinutes(5);
+    private readonly string _directory = config["Clients:DownloadDirectory"] ?? "/app/downloads";
+    private readonly TimeSpan _maxAge = TimeSpan.FromMinutes(20);
+    private readonly TimeSpan _interval = TimeSpan.FromMinutes(20);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -43,7 +42,7 @@ public class CleanupWorker(ILogger<CleanupWorker> logger, IConfiguration config)
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"[CleanupWorker] Unhanded error: {ex}");
+                logger.LogError(ex, $"[CleanupWorker] Unhandled error: {ex}");
             }
 
             await Task.Delay(_interval, stoppingToken);

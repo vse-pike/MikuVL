@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Builder;
 using Serilog;
 using Telegram.Bot;
 using Telegram.Bot.Polling;
-using TelegramBot.Downloader;
+using TelegramBot;
+using TelegramBot.Clients;
+using TelegramBot.Services;
 using TelegramBot.Telegram;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,12 +12,14 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration
     .AddEnvironmentVariables();
 
-var token = Environment.GetEnvironmentVariable("TELEGRAM_BOT__APITOKEN");
+var token = "7712708127:AAEbaMuYWHezQCpVIlv4Qz3lC5EtJI3m28U";
 
 if (string.IsNullOrEmpty(token))
 {
     throw new Exception("Token is null or empty");
 }
+
+DbInitializer.EnsureDatabase();
 
 builder.Services.AddHostedService<PollingService>();
 
@@ -32,9 +36,12 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Services.AddScoped<IUpdateHandler, UpdateHandler>();
 builder.Services.AddScoped<ReceiverService>();
-builder.Services.AddScoped<IDownloader, Downloader>();
+builder.Services.AddScoped<IClient, DownloaderClient>();
 builder.Services.AddHostedService<CleanupWorker>();
-builder.Services.AddHttpClient<Downloader>();
+builder.Services.AddHttpClient<DownloaderClient>();
+builder.Services.AddSingleton<ITelethonClient, TelethonClient>();
+builder.Services.AddScoped<IUploader, TelegramUploader>();
+builder.Services.AddSingleton<AppConfigService>();
 builder.Services.AddControllers();
 
 builder.Host.UseSerilog();

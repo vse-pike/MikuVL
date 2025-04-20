@@ -1,73 +1,138 @@
 using Microsoft.AspNetCore.Mvc;
 using Telegram.Bot;
-using Telegram.Bot.Types;
-using TelegramBot.Telegram;
+using TelegramBot.Clients;
+using TelegramBot.Services;
 
 namespace TelegramBot.Controller;
 
 [ApiController]
-[Route("video-ready")]
-public class VideoReadyController(
-    ITelegramBotClient botClient,
-    IConfiguration configuration,
-    ILogger<VideoReadyController> logger) : ControllerBase
+[Route("")]
+public class VideoReadyController : ControllerBase
 {
+    private readonly long _defaultLimit;
+    private readonly long _maxLimit;
+    private readonly ITelegramBotClient _botClient;
+    private readonly ILogger<VideoReadyController> _logger;
+    private readonly IUploader _uploader;
+    private readonly IClient _client;
+    private readonly IConfiguration _configuration;
+
+    public VideoReadyController(
+        ITelegramBotClient botClient,
+        IConfiguration configuration,
+        IClient client,
+        IUploader uploader,
+        AppConfigService appConfigService,
+        ILogger<VideoReadyController> logger)
+    {
+        _defaultLimit = appConfigService.LightLimit;
+        _maxLimit = appConfigService.HeavyLimit;
+        _botClient = botClient;
+        _logger = logger;
+        _uploader = uploader;
+        _client = client;
+        _configuration = configuration;
+    }
+
     [HttpPost]
+    [Route("video-ready")]
     public async Task<IActionResult> VideoReady([FromBody] VideoReadyPayload request,
         CancellationToken cancellationToken)
     {
-        logger.LogInformation(
-            $"[VideoReadyController] Request received with result: {request.Result}; file name: {request.Filename}; for telegramId: {request.TelegramId}");
+        _logger.LogInformation(
+            "[VideoReadyController] Received 'video-ready' with result: {Result}, file: {File}, telegramId: {Id}",
+            request.Result, request.Filename, request.TelegramId);
 
         if (request.Result != "success")
         {
-            return BadRequest();
+            throw new BusinessException(
+                "[VideoReadyController] Received 'video-ready' with result: {Result}, file: {File}, telegramId: {Id}");
         }
 
-        var downloadDirectory = configuration["Downloader:DownloadDirectory"] ?? "/app/downloads";
-
+        var downloadDirectory = _configuration["Downloader:DownloadDirectory"] ?? "/app/downloads";
         var fullPath = Path.Combine(downloadDirectory, request.Filename);
-
-        logger.LogInformation($"[VideoReadyController] Full path to downloaded file: {fullPath}");
 
         if (!System.IO.File.Exists(fullPath))
         {
-            logger.LogWarning("[VideoReadyController] Path doesn't exist");
-            return BadRequest("File not found");
+            _logger.LogError("[VideoReadyController] File not found at path: {Path}", fullPath);
+            return Ok();
         }
 
-
-        Task.Run(() => { return SendVideoAsync(request, fullPath); });
-
+        _ = Task.Run(() => _uploader.UploadAndSendAsync(
+            request.TelegramId,
+            request.MessageId,
+            fullPath,
+            request.Filename));
 
         return Ok();
     }
 
-    private async Task SendVideoAsync(VideoReadyPayload request, string fullPath)
+    [HttpPost]
+    [Route("meta-ready")]
+    public async Task<IActionResult> MetaReady([FromBody] MetaReadyPayload request, CancellationToken cancellationToken)
     {
-        try
-        {
-            logger.LogInformation($"[SendVideoAsync] Старт отправки видео для {request.TelegramId}");
+        _logger.LogInformation(
+            "[VideoReadyController] Received 'meta-ready' with result: {Result}, size: {Size}, telegramId: {Id}",
+            request.Result, request.Filesize, request.TelegramId);
 
-            await botClient.EditMessageText(
+        if (request.Result != "success")
+        {
+            throw new BusinessException(
+                "[VideoReadyController] Received 'meta-ready' with result: {Result}, size: {Size}, telegramId: {Id}");
+        }
+
+        if (!await IsWeightAllowed(request.TelegramId, request.Filesize))
+        {
+            await _botClient.EditMessageText(
                 chatId: request.TelegramId,
                 messageId: request.MessageId,
-                text: "Всё готово! Я уже держу его в руках~\nОтправляю тебе прямо сейчас! 💌"
-            );
+                text: "Файл такой... огромный 😳 Я не справлюсь с ним, прости~",
+                cancellationToken: cancellationToken);
 
-            using var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-
-            await botClient.SendDocument(
-                chatId: request.TelegramId,
-                document: InputFile.FromStream(stream, request.Filename)
-            );
-
-            logger.LogInformation($"[SendVideoAsync] Видео успешно отправлено: {request.Filename}");
+            return Ok();
         }
-        catch (Exception ex)
+
+        await _client.SendDownloadRequest(request.Url, request.TelegramId, request.MessageId);
+
+        if (request.Filesize < _maxLimit && request.Filesize > _defaultLimit)
         {
-            logger.LogError(ex, $"[SendVideoAsync] Ошибка при отправке файла {request.Filename}");
+            await _botClient.EditMessageText(
+                chatId: request.TelegramId,
+                messageId: request.MessageId,
+                text:
+                "Он такой тяжёленький... Мне нужно чуть больше времени, чтобы аккуратно его распаковать~ \ud83e\udd7a",
+                cancellationToken: cancellationToken);
+
+            return Ok();
         }
+
+        await _botClient.EditMessageText(
+            chatId: request.TelegramId,
+            messageId: request.MessageId,
+            text: "Ура! Сейчас найду видео и аккуратно сложу его в коробочку~ 📦\nНемножечко подожди, хорошо? 🎶",
+            cancellationToken: cancellationToken);
+
+        return Ok();
+    }
+
+    private async Task<bool> IsWeightAllowed(long telegramId, long fileSize)
+    {
+        if (fileSize <= _defaultLimit)
+        {
+            return true;
+        }
+
+        if (fileSize > _maxLimit)
+        {
+            _logger.LogWarning($"File size is too big: {fileSize}");
+            return false;
+        }
+
+        var isPremium = await DbService.CheckUsersPremium(telegramId);
+
+        _logger.LogDebug($"User is premium: {isPremium}");
+
+        return isPremium;
     }
 
     public class VideoReadyPayload
@@ -79,6 +144,16 @@ public class VideoReadyController(
         public int MessageId { get; set; }
         public string Filename { get; set; } = "";
 
+        public string? Error { get; set; }
+    }
+
+    public class MetaReadyPayload
+    {
+        public string Result { get; set; } = "";
+        public string Url { get; set; } = "";
+        public long TelegramId { get; set; }
+        public int MessageId { get; set; }
+        public long Filesize { get; set; }
         public string? Error { get; set; }
     }
 }

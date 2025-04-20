@@ -3,7 +3,7 @@ version: "3.9"
 services:
   yt_downloader:
     build:
-      context: vsepike/yt_downloader:latest
+      context: ./yt_downloader
     container_name: yt_downloader
     environment:
       HOST: "0.0.0.0"
@@ -19,7 +19,7 @@ services:
 
   miku_bot:
     build:
-      context: vsepike/MikuBot:latest
+      context: ./MikuBot
     container_name: miku_bot
     env_file:
       - .env

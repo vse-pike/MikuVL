@@ -3,11 +3,12 @@ using Telegram.Bot;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
-using TelegramBot.Downloader;
+using TelegramBot.Clients;
+using TelegramBot.Services;
 
 namespace TelegramBot.Telegram;
 
-public class UpdateHandler(ITelegramBotClient botClient, IDownloader downloader, ILogger<UpdateHandler> logger)
+public class UpdateHandler(ITelegramBotClient botClient, IClient client, ILogger<UpdateHandler> logger)
     : IUpdateHandler
 {
     public async Task HandleUpdateAsync(ITelegramBotClient _, Update update, CancellationToken cancellationToken)
@@ -44,64 +45,24 @@ public class UpdateHandler(ITelegramBotClient botClient, IDownloader downloader,
 
             if (message.Text == "/start")
             {
-                using var stream = new FileStream("./Miku.gif", FileMode.Open, FileAccess.Read, FileShare.Read);
-
-                await botClient.SendMessage(telegramId,
-                   text:
-                    "Приветик! Я Мику, твоя помощница 🎀 \nОтправь мне ссылочку на видео весом до 50 mb (например, с X, YouTube, Instagram или TikTok), и я постараюсь достать его для тебя, хорошо~?",
-                    cancellationToken: cancellationToken);
-
-                await botClient.SendAnimation(telegramId,
-                    animation: InputFile.FromStream(stream),
-                    cancellationToken: cancellationToken);
+                await StartCommand(telegramId, cancellationToken);
             }
             else
             {
-                var extractedUrl = TryExtractUrl(message);
-
-                if (string.IsNullOrEmpty(extractedUrl))
-                {
-                    logger.LogWarning("[UpdateHandler] Url was extracted unsuccessful");
-
-                    await botClient.SendMessage(telegramId,
-                        "Эээ… Кажется, я не смогла найти ссылочку в твоём сообщении 😿\nПопробуй ещё раз, пожалуйста! Я очень стараюсь~ 🌸",
-                        cancellationToken: cancellationToken);
-
-                    return;
-                }
-
-                logger.LogInformation($"[UpdateHandler] Url was extracted: {extractedUrl}");
-
-                var outputMessage = await botClient.SendMessage(telegramId,
-                    "Начинаю поиск ^_^",
-                    cancellationToken: cancellationToken);
-
-                var result = await downloader.SendDownloadRequest(extractedUrl, telegramId, outputMessage.MessageId);
-
-                logger.LogInformation($"[UpdateHandler] Download request result: {result}");
-
-                if (result)
-                {
-                    await botClient.EditMessageText(
-                        chatId: telegramId,
-                        messageId: outputMessage.MessageId,
-                        text: "Ура! Сейчас найду видео и аккуратно сложу его в коробочку~ 📦\nНемножечко подожди, хорошо? 🎶",
-                        cancellationToken: cancellationToken);
-                }
-                else
-                {
-                    await botClient.EditMessageText(
-                        chatId: telegramId,
-                        messageId: outputMessage.MessageId,
-                        text:
-                        "Ой-ой… Кажется, что-то пошло не так, и я не смогла достать видео 😢\nМожет, попробуем ещё раз чуть позже?..",
-                        cancellationToken: cancellationToken);
-                }
+                await DownloadCommand(message, telegramId, cancellationToken);
             }
+        }
+        catch (BusinessException _)
+        {
+            logger.LogError($"[UpdateHandler] BusinessException: {_}");
+
+            await botClient.SendMessage(telegramId,
+                "Ой-ой… Кажется, что-то пошло не так, и я не смогла достать видео 😢\nМожет, попробуем ещё раз чуть позже?..",
+                cancellationToken: cancellationToken);
         }
         catch (Exception _)
         {
-            logger.LogCritical($"[UpdateHandler] Unhanded error: {_}");
+            logger.LogCritical($"[UpdateHandler] Unhandled error: {_}");
 
             await botClient.SendMessage(telegramId,
                 "Ой-ой… Кажется, что-то пошло не так, и я не смогла достать видео 😢\nМожет, попробуем ещё раз чуть позже?..",
@@ -113,6 +74,56 @@ public class UpdateHandler(ITelegramBotClient botClient, IDownloader downloader,
         CancellationToken cancellationToken)
     {
         return Task.CompletedTask;
+    }
+
+    private async Task StartCommand(long telegramId, CancellationToken cancellationToken)
+    {
+        await using var stream = new FileStream("./Miku.gif", FileMode.Open, FileAccess.Read, FileShare.Read);
+
+        var isPremium = await DbService.CheckUsersPremium(telegramId);
+
+        if (isPremium)
+        {
+            await botClient.SendMessage(telegramId,
+                text:
+                "Приветик! Я Мику, твоя помощница 🎀\nОтправь мне ссылочку на видео (например, с X, YouTube, Instagram или TikTok), и я постараюсь достать его для тебя \n\nТы у меня особенный 💎\nТак что можешь присылать ссылочки на видео весом до 1 гб~ \nЯ постараюсь найти и аккуратненько всё тебе передать, хорошо? ✨",
+                cancellationToken: cancellationToken);
+        }
+        else
+        {
+            await botClient.SendMessage(telegramId,
+                text:
+                "Приветик! Я Мику, твоя помощница 🎀 \nОтправь мне ссылочку на видео весом до 50 mb (например, с X, YouTube, Instagram или TikTok), и я постараюсь достать его для тебя, хорошо~?",
+                cancellationToken: cancellationToken);
+        }
+
+        await botClient.SendAnimation(telegramId,
+            animation: InputFile.FromStream(stream),
+            cancellationToken: cancellationToken);
+    }
+
+    private async Task DownloadCommand(Message message, long telegramId, CancellationToken cancellationToken)
+    {
+        var extractedUrl = TryExtractUrl(message);
+
+        if (string.IsNullOrEmpty(extractedUrl))
+        {
+            logger.LogWarning("[UpdateHandler] Url was extracted unsuccessful");
+
+            await botClient.SendMessage(telegramId,
+                "Эээ… Кажется, я не смогла найти ссылочку в твоём сообщении 😿\nПопробуй ещё раз, пожалуйста! Я очень стараюсь~ 🌸",
+                cancellationToken: cancellationToken);
+
+            return;
+        }
+
+        logger.LogInformation($"[UpdateHandler] Url was extracted: {extractedUrl}");
+
+        var outputMessage = await botClient.SendMessage(telegramId,
+            "Начинаю поиск ^_^",
+            cancellationToken: cancellationToken);
+
+        await client.SendMetaRequest(extractedUrl, telegramId, outputMessage.MessageId);
     }
 
     private static long? GetChatIdOrDefault(Update update)

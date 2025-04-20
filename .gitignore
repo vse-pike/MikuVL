@@ -10,3 +10,5 @@ riderModule.iml
 /MikuBot/.idea/
 /MikuBot/todo.txt
 /HarukiBot/.idea/.idea.HarukiVideo/.idea/workspace.xml
+/MikuBot/appsettig.Development.json
+/.env
