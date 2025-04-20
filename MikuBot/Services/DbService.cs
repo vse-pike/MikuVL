@@ -16,8 +16,9 @@ public static class DbService
         command.Parameters.AddWithValue("@id", telegramId);
 
         await using var reader = await command.ExecuteReaderAsync();
-        var isPremium = await reader.ReadAsync();
+        var result = await command.ExecuteScalarAsync();
+        var count = Convert.ToInt32(result);
 
-        return isPremium;
+        return count == 1;
     }
 }

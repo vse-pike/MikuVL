@@ -81,6 +81,8 @@ public class UpdateHandler(ITelegramBotClient botClient, IClient client, ILogger
         await using var stream = new FileStream("./Miku.gif", FileMode.Open, FileAccess.Read, FileShare.Read);
 
         var isPremium = await DbService.CheckUsersPremium(telegramId);
+        
+        logger.LogInformation($"[UpdateHandler] Starting command: {isPremium}");
 
         if (isPremium)
         {

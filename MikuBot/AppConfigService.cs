@@ -34,6 +34,15 @@ public class AppConfigService
                                 throw new InvalidOperationException("Missing StorageSettings:HeavyLimit"));
         StorageChannelId = storageSection["StorageChannelId"] ??
                            throw new InvalidOperationException("Missing StorageSettings:StorageChannelId");
+        
+        logger.LogInformation($"Telethon:ApiId: {ApiId}");
+        logger.LogInformation($"Telethon:ApiHash: {ApiHash}");
+        logger.LogInformation($"Telethon:PhoneNumber: {PhoneNumber}");
+        logger.LogInformation($"Telethon:SessionPath: {SessionPath}");
+        logger.LogInformation($"Telethon:ChannelName: {ChannelName}");
+        logger.LogInformation($"Telethon:LightLimit: {LightLimit}");
+        logger.LogInformation($"Telethon:HeavyLimit: {HeavyLimit}");
+        logger.LogInformation($"Telethon:StorageChannelId: {StorageChannelId}");
 
         _telethonConfig = new Dictionary<string, string>
         {
