@@ -125,7 +125,14 @@ public class UpdateHandler(ITelegramBotClient botClient, IClient client, ILogger
             "Начинаю поиск ^_^",
             cancellationToken: cancellationToken);
 
-        await client.SendMetaRequest(extractedUrl, telegramId, outputMessage.MessageId);
+        if (IsLowWeightedToDownload(extractedUrl))
+        {
+            await client.SendDownloadRequest(extractedUrl, telegramId, outputMessage.MessageId);
+        }
+        else
+        {
+            await client.SendMetaRequest(extractedUrl, telegramId, outputMessage.MessageId);
+        }
     }
 
     private static long? GetChatIdOrDefault(Update update)
@@ -141,5 +148,16 @@ public class UpdateHandler(ITelegramBotClient botClient, IClient client, ILogger
         var match = regex.Match(text);
 
         return match.Success ? match.Value : null;
+    }
+    
+    private static bool IsLowWeightedToDownload(string url)
+    {
+        Uri.TryCreate(url, UriKind.Absolute, out var uri);
+
+        var host = uri?.Host.ToLower() ?? string.Empty;
+
+        return host.Contains("x.com") || host.Contains("twitter.com") ||
+               host.Contains("tiktok.com") ||
+               host.Contains("instagram.com");
     }
 }

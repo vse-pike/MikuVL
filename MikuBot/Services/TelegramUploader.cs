@@ -61,8 +61,9 @@ public class TelegramUploader : IUploader
 
                 await _botClient.CopyMessage(
                     chatId: telegramId,
-                    fromChatId: _storageChannelId!,
+                    fromChatId: _storageChannelId,
                     messageId: messageIdInChannel);
+                
                 _logger.LogInformation($"[Uploader] File {filename} sent via file_id after upload to Telegram API");
             }
         }
