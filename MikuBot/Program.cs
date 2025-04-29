@@ -12,7 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration
     .AddEnvironmentVariables();
 
-var token = Environment.GetEnvironmentVariable("TELEGRAM_BOT__APITOKEN");
+var token = builder.Configuration.GetRequiredSection("Telegram").GetValue<string>("BotToken");
 
 if (string.IsNullOrEmpty(token))
 {
