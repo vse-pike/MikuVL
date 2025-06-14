@@ -20,11 +20,9 @@ LIGHT_DOMAINS = ["tiktok.com", "instagram.com", "x.com", "twitter.com"]
 
 ydl_light_opts = {
     "format": "best",
+    "merge_output_format": "mp4",
+    "list_formats": True,
     "outtmpl": os.path.join(DOWNLOAD_DIR, "%(id)s.%(ext)s"),
-    "noplaylist": True,
-    "quiet": True,
-    "no_warnings": True,
-    "ignoreerrors": True,
 }
 
 ydl_light = YoutubeDL(ydl_opts)
@@ -38,7 +36,7 @@ def download_process(data):
     try:
 
         if is_light_domain(url):
-            logger.info("Using ydl_light: %s", url)
+            logger.info(f"Using ydl_light: {url}")
 
             info = ydl_light.extract_info(url, download=True)
             filename = ydl_light.prepare_filename(info)
@@ -46,7 +44,7 @@ def download_process(data):
             saved_name = os.path.basename(filename)
 
         else:
-            logger.info("Using ydl: %s", url)
+            logger.info(f"Using ydl: {url}")
 
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
