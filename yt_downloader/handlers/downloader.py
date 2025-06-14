@@ -2,6 +2,7 @@ import os
 from yt_dlp import YoutubeDL
 from loguru import logger
 from clients.miku_client import send_video_ready_callback
+from urllib.parse import urlparse
 
 DOWNLOAD_DIR = os.environ.get("DOWNLOAD_DIR", "../downloads")
 
@@ -15,16 +16,43 @@ ydl_opts = {
 ydl = YoutubeDL(ydl_opts)
 
 
+LIGHT_DOMAINS = [
+    "tiktok.com",
+    "instagram.com",
+    "x.com",
+    "twitter.com"
+]
+
+ydl_light_opts = {
+    "format": "best",  
+    "merge_output_format": "mp4",
+    "outtmpl": os.path.join(DOWNLOAD_DIR, "%(id)s.%(ext)s"),
+    "noplaylist": True,
+    "quiet": True,
+    "no_warnings": True,
+    "ignoreerrors": True,
+}
+
+ydl_light = YoutubeDL(ydl_opts)
+
 def download_process(data):
     url = data.get("url")
     telegram_id = data.get("telegramId")
     message_id = data.get("messageId")
 
     try:
-        info = ydl.extract_info(url, download=True)
-        filename = ydl.prepare_filename(info)
 
-        saved_name = os.path.basename(filename)
+        if(is_light_domain(url)):
+            info = ydl_light.extract_info(url, download=True)
+            filename = ydl_light.prepare_filename(info)
+
+            saved_name = os.path.basename(filename)
+
+        else:
+            info = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info)
+
+            saved_name = os.path.basename(filename)
 
         logger.info({
             "result": "success",
@@ -50,3 +78,10 @@ def download_process(data):
             "filename": None,
             "error": str(e)
         })
+
+def is_light_domain(url):
+    try:
+        hostname = urlparse(url).hostname or ""
+        return any(hostname.endswith(domain) for domain in LIGHT_DOMAINS)
+    except Exception:
+        return False

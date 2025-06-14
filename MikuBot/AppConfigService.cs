@@ -34,7 +34,7 @@ public class AppConfigService
                                 throw new InvalidOperationException("Missing StorageSettings:HeavyLimit"));
         StorageChannelId = storageSection["StorageChannelId"] ??
                            throw new InvalidOperationException("Missing StorageSettings:StorageChannelId");
-        
+
         logger.LogInformation($"Telethon:ApiId: {ApiId}");
         logger.LogInformation($"Telethon:ApiHash: {ApiHash}");
         logger.LogInformation($"Telethon:PhoneNumber: {PhoneNumber}");
