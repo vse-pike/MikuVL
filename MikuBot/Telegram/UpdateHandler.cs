@@ -4,7 +4,6 @@ using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using TelegramBot.Clients;
-using TelegramBot.Services;
 
 namespace TelegramBot.Telegram;
 
@@ -79,25 +78,11 @@ public class UpdateHandler(ITelegramBotClient botClient, IClient client, ILogger
     private async Task StartCommand(long telegramId, CancellationToken cancellationToken)
     {
         await using var stream = new FileStream("./Miku.gif", FileMode.Open, FileAccess.Read, FileShare.Read);
-
-        var isPremium = await DbService.CheckUsersPremium(telegramId);
         
-        logger.LogInformation($"[UpdateHandler] Starting command: {isPremium}");
-
-        if (isPremium)
-        {
-            await botClient.SendMessage(telegramId,
-                text:
-                "Приветик! Я Мику, твоя помощница 🎀\nОтправь мне ссылочку на видео (например, с X, YouTube, Instagram или TikTok), и я постараюсь достать его для тебя \n\nТы у меня особенный 💎\nТак что можешь присылать ссылочки на видео весом до 1 гб~ \nЯ постараюсь найти и аккуратненько всё тебе передать, хорошо? ✨",
-                cancellationToken: cancellationToken);
-        }
-        else
-        {
-            await botClient.SendMessage(telegramId,
-                text:
-                "Приветик! Я Мику, твоя помощница 🎀 \nОтправь мне ссылочку на видео весом до 50 mb (например, с X, YouTube, Instagram или TikTok), и я постараюсь достать его для тебя, хорошо~?",
-                cancellationToken: cancellationToken);
-        }
+        await botClient.SendMessage(telegramId,
+            text:
+            "Приветик! Я Мику, твоя помощница 🎀\nОтправь мне ссылочку на видео (например, с X, YouTube, Instagram или TikTok), и я постараюсь достать его для тебя \nДля YouTube ты можешь присылать ссылочки на видео весом до 1 гб~ \nЯ постараюсь найти и аккуратненько всё тебе передать, хорошо? ✨",
+            cancellationToken: cancellationToken);
 
         await botClient.SendAnimation(telegramId,
             animation: InputFile.FromStream(stream),
@@ -149,7 +134,7 @@ public class UpdateHandler(ITelegramBotClient botClient, IClient client, ILogger
 
         return match.Success ? match.Value : null;
     }
-    
+
     private static bool IsLowWeightedToDownload(string url)
     {
         Uri.TryCreate(url, UriKind.Absolute, out var uri);

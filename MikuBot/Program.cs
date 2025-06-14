@@ -19,8 +19,6 @@ if (string.IsNullOrEmpty(token))
     throw new Exception("Token is null or empty");
 }
 
-DbInitializer.EnsureDatabase();
-
 builder.Services.AddHostedService<PollingService>();
 
 builder.Services.AddHttpClient("telegram_bot_client")

@@ -81,7 +81,7 @@ public class VideoReadyController : ControllerBase
                 "[VideoReadyController] Received 'meta-ready' with result: {Result}, size: {Size}, telegramId: {Id}");
         }
 
-        if (!await IsWeightAllowed(request.TelegramId, request.Filesize))
+        if (!IsWeightAllowed(request.Filesize))
         {
             await _botClient.EditMessageText(
                 chatId: request.TelegramId,
@@ -115,7 +115,7 @@ public class VideoReadyController : ControllerBase
         return Ok();
     }
 
-    private async Task<bool> IsWeightAllowed(long telegramId, long fileSize)
+    private bool IsWeightAllowed(long fileSize)
     {
         if (fileSize <= _defaultLimit)
         {
@@ -128,11 +128,7 @@ public class VideoReadyController : ControllerBase
             return false;
         }
 
-        var isPremium = await DbService.CheckUsersPremium(telegramId);
-
-        _logger.LogDebug($"User is premium: {isPremium}");
-
-        return isPremium;
+        return true;
     }
 
     public class VideoReadyPayload
