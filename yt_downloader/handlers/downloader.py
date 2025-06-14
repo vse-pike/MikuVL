@@ -38,12 +38,16 @@ def download_process(data):
     try:
 
         if is_light_domain(url):
+            logger.info("Using ydl_light: %s", url)
+
             info = ydl_light.extract_info(url, download=True)
             filename = ydl_light.prepare_filename(info)
 
             saved_name = os.path.basename(filename)
 
         else:
+            logger.info("Using ydl: %s", url)
+
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
 
