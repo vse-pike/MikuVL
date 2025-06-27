@@ -10,6 +10,7 @@ namespace TelegramBot.Telegram;
 public class UpdateHandler(ITelegramBotClient botClient, IClient client, ILogger<UpdateHandler> logger)
     : IUpdateHandler
 {
+    private const string BotUsername = "miku_vl_bot";
     public async Task HandleUpdateAsync(ITelegramBotClient _, Update update, CancellationToken cancellationToken)
     {
         var telegramId = GetChatIdOrDefault(update);
@@ -45,6 +46,10 @@ public class UpdateHandler(ITelegramBotClient botClient, IClient client, ILogger
             if (message.Text == "/start")
             {
                 await StartCommand(telegramId, cancellationToken);
+            }
+            else if (update.Message?.Text?.Contains($"@{BotUsername}") == true)
+            {
+                await DownloadCommand(message, telegramId, cancellationToken, true);
             }
             else
             {
@@ -88,8 +93,8 @@ public class UpdateHandler(ITelegramBotClient botClient, IClient client, ILogger
             animation: InputFile.FromStream(stream),
             cancellationToken: cancellationToken);
     }
-
-    private async Task DownloadCommand(Message message, long telegramId, CancellationToken cancellationToken)
+    
+    private async Task DownloadCommand(Message message, long chatId, CancellationToken cancellationToken, bool isChatMention = false)
     {
         var extractedUrl = TryExtractUrl(message);
 
@@ -97,7 +102,7 @@ public class UpdateHandler(ITelegramBotClient botClient, IClient client, ILogger
         {
             logger.LogWarning("[UpdateHandler] Url was extracted unsuccessful");
 
-            await botClient.SendMessage(telegramId,
+            await botClient.SendMessage(chatId,
                 "Эээ… Кажется, я не смогла найти ссылочку в твоём сообщении 😿\nПопробуй ещё раз, пожалуйста! Я очень стараюсь~ 🌸",
                 cancellationToken: cancellationToken);
 
@@ -106,17 +111,23 @@ public class UpdateHandler(ITelegramBotClient botClient, IClient client, ILogger
 
         logger.LogInformation($"[UpdateHandler] Url was extracted: {extractedUrl}");
 
-        var outputMessage = await botClient.SendMessage(telegramId,
+        var outputMessage = await botClient.SendMessage(chatId,
             "Начинаю поиск ^_^",
             cancellationToken: cancellationToken);
 
-        if (IsLowWeightedToDownload(extractedUrl))
+        if (IsLowWeightedToDownload(extractedUrl) && !isChatMention)
         {
-            await client.SendDownloadRequest(extractedUrl, telegramId, outputMessage.MessageId);
+            await client.SendDownloadRequest(extractedUrl, chatId, outputMessage.MessageId);
+        }
+        else if (!IsLowWeightedToDownload(extractedUrl) && isChatMention)
+        {
+            await botClient.EditMessageText(chatId: chatId, messageId: outputMessage.MessageId, 
+                text: "Прости, сладкий~ В режиме чата я могу скачивать только короткие видео \ud83e\udd0f",
+                cancellationToken: cancellationToken);
         }
         else
         {
-            await client.SendMetaRequest(extractedUrl, telegramId, outputMessage.MessageId);
+            await client.SendMetaRequest(extractedUrl, chatId, outputMessage.MessageId);
         }
     }
 
