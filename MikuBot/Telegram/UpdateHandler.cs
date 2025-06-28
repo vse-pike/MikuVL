@@ -98,7 +98,7 @@ public class UpdateHandler(ITelegramBotClient botClient, IClient client, ILogger
     {
         var extractedUrl = TryExtractUrl(message);
 
-        if (string.IsNullOrEmpty(extractedUrl))
+        if (string.IsNullOrEmpty(extractedUrl) && !isChatMention)
         {
             logger.LogWarning("[UpdateHandler] Url was extracted unsuccessful");
 
@@ -115,15 +115,18 @@ public class UpdateHandler(ITelegramBotClient botClient, IClient client, ILogger
             "Начинаю поиск ^_^",
             cancellationToken: cancellationToken);
 
-        if (IsLowWeightedToDownload(extractedUrl) && !isChatMention)
+        if (IsLowWeightedToDownload(extractedUrl))
         {
             await client.SendDownloadRequest(extractedUrl, chatId, outputMessage.MessageId);
         }
-        else if (!IsLowWeightedToDownload(extractedUrl) && isChatMention)
+        else if (isChatMention)
         {
-            await botClient.EditMessageText(chatId: chatId, messageId: outputMessage.MessageId, 
-                text: "Прости, сладкий~ В режиме чата я могу скачивать только короткие видео \ud83e\udd0f",
-                cancellationToken: cancellationToken);
+            await botClient.EditMessageText(
+                chatId: chatId,
+                messageId: outputMessage.MessageId,
+                text: "Прости, сладкий~ В режиме чата я могу скачивать только короткие видео 🤏",
+                cancellationToken: cancellationToken
+            );
         }
         else
         {
