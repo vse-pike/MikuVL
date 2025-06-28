@@ -1,3 +1,4 @@
+import json
 from yt_dlp import YoutubeDL
 from loguru import logger
 from clients.miku_client import send_meta_ready_callback
@@ -20,6 +21,7 @@ def weight_check_process(data):
 
     try:
         info = ydl_meta.extract_info(url, download=False)
+        logger.info(f"YT-DLP info:\n{json.dumps(info, indent=2)}")
         filesize = info.get('filesize') or info.get('filesize_approx')
 
         logger.info({
