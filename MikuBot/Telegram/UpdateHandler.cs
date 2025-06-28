@@ -13,9 +13,9 @@ public class UpdateHandler(ITelegramBotClient botClient, IClient client, ILogger
     private const string BotUsername = "miku_vl_bot";
     public async Task HandleUpdateAsync(ITelegramBotClient _, Update update, CancellationToken cancellationToken)
     {
-        var telegramId = GetChatIdOrDefault(update);
+        var chatId = GetChatIdOrDefault(update);
 
-        if (!telegramId.HasValue)
+        if (!chatId.HasValue)
         {
             return;
         }
@@ -23,13 +23,13 @@ public class UpdateHandler(ITelegramBotClient botClient, IClient client, ILogger
         switch (update.Type)
         {
             case UpdateType.Message:
-                await HandleTextMessageAsync(telegramId.Value, update, cancellationToken);
+                await HandleTextMessageAsync(chatId.Value, update, cancellationToken);
 
                 return;
         }
     }
 
-    private async Task HandleTextMessageAsync(long telegramId, Update update, CancellationToken cancellationToken)
+    private async Task HandleTextMessageAsync(long chatId, Update update, CancellationToken cancellationToken)
     {
         try
         {
@@ -41,26 +41,27 @@ public class UpdateHandler(ITelegramBotClient botClient, IClient client, ILogger
             }
 
             logger.LogInformation(
-                $"[UpdateHandler] Received text message: {message.Text} from user with id {telegramId}");
+                $"[UpdateHandler] Received text message: {message.Text} from user with id {chatId}");
 
+            var chat = message.Chat;
+            var isPrivate = chat.Type == ChatType.Private;
+            var isGroupMention = chat.Type is ChatType.Group or ChatType.Supergroup &&
+                                 message.Text?.Contains($"@{BotUsername}") == true;
+            
             if (message.Text == "/start")
             {
-                await StartCommand(telegramId, cancellationToken);
+                await StartCommand(chatId, cancellationToken);
             }
-            else if (update.Message?.Text?.Contains($"@{BotUsername}") == true)
+            if (isPrivate || isGroupMention)
             {
-                await DownloadCommand(message, telegramId, cancellationToken, true);
-            }
-            else
-            {
-                await DownloadCommand(message, telegramId, cancellationToken);
+                await DownloadCommand(message, chatId, isPrivate, cancellationToken);
             }
         }
         catch (BusinessException _)
         {
             logger.LogError($"[UpdateHandler] BusinessException: {_}");
 
-            await botClient.SendMessage(telegramId,
+            await botClient.SendMessage(chatId,
                 "Ой-ой… Кажется, что-то пошло не так, и я не смогла достать видео 😢\nМожет, попробуем ещё раз чуть позже?..",
                 cancellationToken: cancellationToken);
         }
@@ -68,7 +69,7 @@ public class UpdateHandler(ITelegramBotClient botClient, IClient client, ILogger
         {
             logger.LogCritical($"[UpdateHandler] Unhandled error: {_}");
 
-            await botClient.SendMessage(telegramId,
+            await botClient.SendMessage(chatId,
                 "Ой-ой… Кажется, что-то пошло не так, и я не смогла достать видео 😢\nМожет, попробуем ещё раз чуть позже?..",
                 cancellationToken: cancellationToken);
         }
@@ -80,32 +81,31 @@ public class UpdateHandler(ITelegramBotClient botClient, IClient client, ILogger
         return Task.CompletedTask;
     }
 
-    private async Task StartCommand(long telegramId, CancellationToken cancellationToken)
+    private async Task StartCommand(long chatId, CancellationToken cancellationToken)
     {
         await using var stream = new FileStream("./Miku.gif", FileMode.Open, FileAccess.Read, FileShare.Read);
         
-        await botClient.SendMessage(telegramId,
+        await botClient.SendMessage(chatId,
             text:
             "Приветик! Я Мику, твоя помощница 🎀\nОтправь мне ссылочку на видео (например, с X, YouTube, Instagram или TikTok), и я постараюсь достать его для тебя \nДля YouTube ты можешь присылать ссылочки на видео весом до 1 гб~ \nЯ постараюсь найти и аккуратненько всё тебе передать, хорошо? ✨",
             cancellationToken: cancellationToken);
 
-        await botClient.SendAnimation(telegramId,
+        await botClient.SendAnimation(chatId,
             animation: InputFile.FromStream(stream),
             cancellationToken: cancellationToken);
     }
     
-    private async Task DownloadCommand(Message message, long chatId, CancellationToken cancellationToken, bool isChatMention = false)
+    private async Task DownloadCommand(Message message, long chatId, bool isPrivate, CancellationToken cancellationToken)
     {
         var extractedUrl = TryExtractUrl(message);
 
-        if (string.IsNullOrEmpty(extractedUrl) && !isChatMention)
+        if (string.IsNullOrEmpty(extractedUrl))
         {
             logger.LogWarning("[UpdateHandler] Url was extracted unsuccessful");
 
             await botClient.SendMessage(chatId,
                 "Эээ… Кажется, я не смогла найти ссылочку в твоём сообщении 😿\nПопробуй ещё раз, пожалуйста! Я очень стараюсь~ 🌸",
                 cancellationToken: cancellationToken);
-
             return;
         }
 
@@ -119,18 +119,17 @@ public class UpdateHandler(ITelegramBotClient botClient, IClient client, ILogger
         {
             await client.SendDownloadRequest(extractedUrl, chatId, outputMessage.MessageId);
         }
-        else if (isChatMention)
+        else if (isPrivate)
+        {
+            await client.SendMetaRequest(extractedUrl, chatId, outputMessage.MessageId);
+        }
+        else
         {
             await botClient.EditMessageText(
                 chatId: chatId,
                 messageId: outputMessage.MessageId,
                 text: "Прости, сладкий~ В режиме чата я могу скачивать только короткие видео 🤏",
-                cancellationToken: cancellationToken
-            );
-        }
-        else
-        {
-            await client.SendMetaRequest(extractedUrl, chatId, outputMessage.MessageId);
+                cancellationToken: cancellationToken);
         }
     }
 
